@@ -1,10 +1,12 @@
 import pytest
 import allure
+from data import TestData
 
 class TestCreateCourier:
     @allure.title('Проверка возможности создания курьера')
     def test_can_create_courier(self, api_client, courier_data, delete_courier):
         """Курьера можно создать."""
+        assert courier_data is not None, "Failed to register new courier"
         response = api_client.login_courier(courier_data) #пытаемся залогиниться
         assert response.status_code == 200
         assert isinstance(response.json()["id"],int) # проверяем наличие id (целое число)
@@ -20,9 +22,9 @@ class TestCreateCourier:
             "firstName": courier_data["firstName"]
         }
         # Пытаемся зарегистрировать курьера с теми же данными
-        response = api_client.create_courier(payload)  # Здесь вызываем create courier, а не register_new_courier
+        response = api_client.create_courier(payload)
         assert response.status_code == 409  # Ожидаем конфликт
-        assert response.json()["message"] == "Этот логин уже используется"
+        assert response.json()["message"] == TestData.CREATE_COURIER_DUPLICATE_LOGIN
 
         #параметризация для проверки вывода ошибки при одном из отсутствующих полей
     @pytest.mark.parametrize(
@@ -34,7 +36,7 @@ class TestCreateCourier:
         """Чтобы создать курьера, нужно передать в ручку все обязательные поля."""
         response = api_client.create_courier(random_courier_data_without_field)
         assert response.status_code == 400  # Ожидаем Bad Request
-        assert response.json()["message"] == "Недостаточно данных для создания учетной записи"
+        assert response.json()["message"] == TestData.CREATE_COURIER_WITHOUT_LOGIN_PASSWORD
 
 class TestLoginCourier:
     @allure.title('Проверка авторизации курьера')
@@ -51,7 +53,7 @@ class TestLoginCourier:
         data["password"] = ""
         response = api_client.login_courier(data)
         assert response.status_code == 400
-        assert response.json()["message"] == "Недостаточно данных для входа"
+        assert response.json()["message"] == TestData.LOGIN_COURIER_INVALID_CREDENTIALS
 
     @allure.title('Проверка возврата ошибки, если неправильно указать логин или пароль курьера')
     def test_login_courier_invalid_credentials(self, api_client, courier_data):
@@ -60,7 +62,7 @@ class TestLoginCourier:
         invalid_data["password"] = "++"
         response = api_client.login_courier(invalid_data)
         assert response.status_code == 404
-        assert response.json()["message"] == "Учетная запись не найдена"
+        assert response.json()["message"] == TestData.LOGIN_NONEXISTENT_COURIER
 
     @allure.title('Проверка возврата ошибки, если авторизоваться под несуществующим пользователем')
     def test_login_nonexistent_courier(self, api_client):
@@ -68,4 +70,4 @@ class TestLoginCourier:
         nonexistent_data = {"login": "nonexistent_login", "password": "any_password"}
         response = api_client.login_courier(nonexistent_data)
         assert response.status_code == 404
-        assert response.json()["message"] == "Учетная запись не найдена"
+        assert response.json()["message"] == TestData.LOGIN_NONEXISTENT_COURIER
